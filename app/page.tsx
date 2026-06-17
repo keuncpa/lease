@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { SAMPLES } from "@/lib/data/samples";
 import {
   extractRuleBased,
   toLeaseInput,
 } from "@/lib/extraction/extractor";
+import { parsePdf, ocrPdf, type PdfParseResponse } from "@/lib/extraction/pdf";
 import type { ExtractedLease } from "@/lib/extraction/schema";
 import { FIELD_LABELS } from "@/lib/extraction/schema";
 import { buildSchedule, commencementJournalEntry, round } from "@/lib/ifrs16/engine";
@@ -35,8 +36,55 @@ export default function Home() {
   const [useLLM, setUseLLM] = useState(false);
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState("");
+  const [pdf, setPdf] = useState<PdfParseResponse | null>(null);
+  const [pdfBusy, setPdfBusy] = useState("");
+  const [ocrFile, setOcrFile] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const sample = SAMPLES.find((s) => s.id === activeSample);
+
+  async function handlePdf(file: File) {
+    setPdfBusy("PDF 텍스트 추출 중…");
+    setNote("");
+    setExtracted(null);
+    setPdf(null);
+    setOcrFile(null);
+    try {
+      const res = await parsePdf(file);
+      setText(res.text);
+      setPdf(res);
+      if (res.scanned) {
+        setOcrFile(file);
+        setNote(
+          `스캔본 가능성 (페이지당 ${res.charsPerPage}자) — 텍스트 레이어가 거의 없습니다. 아래 OCR을 실행하세요.`
+        );
+      } else {
+        setNote(`PDF 추출 완료 · ${res.pages}p · ${res.charCount}자`);
+      }
+    } catch (e) {
+      setNote(`PDF 추출 실패: ${String(e)}`);
+    } finally {
+      setPdfBusy("");
+    }
+  }
+
+  async function handleOcr() {
+    if (!ocrFile) return;
+    setPdfBusy("OCR 준비 중… (한/영 언어팩 최초 1회 다운로드)");
+    try {
+      const out = await ocrPdf(ocrFile, ({ page, pages, ratio }) =>
+        setPdfBusy(`OCR 인식 중… ${page}/${pages}p (${Math.round(ratio * 100)}%)`)
+      );
+      setText(out);
+      setExtracted(null);
+      setNote(`OCR 완료 · ${out.replace(/\s/g, "").length}자 인식 (감사 시 원본 대조 권고)`);
+      setOcrFile(null);
+    } catch (e) {
+      setNote(`OCR 실패: ${String(e)}`);
+    } finally {
+      setPdfBusy("");
+    }
+  }
 
   async function handleExtract() {
     setLoading(true);
@@ -130,6 +178,9 @@ export default function Home() {
                     setActiveSample(s.id);
                     setText(s.text);
                     setExtracted(null);
+                    setPdf(null);
+                    setOcrFile(null);
+                    setNote("");
                   }}
                   className={`rounded-lg border px-3 py-1.5 text-xs ${
                     activeSample === s.id
@@ -141,9 +192,59 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            {sample && (
+            {sample && !pdf && (
               <p className="mb-2 text-xs text-neutral-400">▸ {sample.note}</p>
             )}
+
+            {/* PDF 업로드 */}
+            <div className="mb-3 rounded-lg border border-dashed border-neutral-300 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs text-neutral-500">
+                  <b className="text-neutral-700">PDF 계약서 업로드</b> — 텍스트 레이어 직접 추출
+                  {pdf && (
+                    <span className="ml-1 text-neutral-400">
+                      · {pdf.fileName} ({pdf.pages}p · {pdf.charCount}자)
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={!!pdfBusy}
+                  className="shrink-0 rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+                >
+                  PDF 선택
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handlePdf(f);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+              {pdf?.scanned && ocrFile && (
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-amber-50 px-2 py-1.5">
+                  <span className="text-xs text-amber-700">
+                    텍스트 레이어 없음(스캔본) — 브라우저 OCR(한/영) 실행
+                  </span>
+                  <button
+                    onClick={handleOcr}
+                    disabled={!!pdfBusy}
+                    className="shrink-0 rounded-lg bg-amber-500 px-3 py-1 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    OCR 시도
+                  </button>
+                </div>
+              )}
+              {pdfBusy && (
+                <p className="mt-2 text-xs text-brand-orange">{pdfBusy}</p>
+              )}
+            </div>
+
             <textarea
               value={text}
               onChange={(e) => {
