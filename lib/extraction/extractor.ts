@@ -27,13 +27,23 @@ function snippet(text: string, idx: number, len = 60): string {
   return text.slice(start, start + len).replace(/\s+/g, " ").trim();
 }
 
+/** 당사자명 정리 — "(이하 '을')" 등 부가설명·후행 구두점 제거. 회사형태 (주) 등은 보존. */
+function cleanParty(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\s*\(\s*이하[^)]*\)\s*$/, "") // "(이하 '을')" 류 제거
+    .replace(/[.,;·]\s*$/, "")
+    .trim();
+}
+
 /** 규칙기반 추출 — 한국어 리스 계약서 대상 */
 export function extractRuleBased(text: string): ExtractedLease {
   const t = text.replace(/\r/g, "");
 
-  // 당사자
-  const lesseeM = t.match(/(?:리스이용자|임차인|"?을"?)\s*[:：]?\s*([^\n,(]{2,30})/);
-  const lessorM = t.match(/(?:리스제공자|임대인|"?갑"?)\s*[:：]?\s*([^\n,(]{2,30})/);
+  // 당사자 — 라벨 뒤 콜론을 요구하고 줄 끝까지 캡처(회사명의 (주) 같은 괄호 보존).
+  // 콤마는 주소 등 후속정보 구분자로 보고 캡처에서 제외한다.
+  const lesseeM = t.match(/(?:리스이용자|임차인)\s*[:：]\s*([^\n,]{2,40})/);
+  const lessorM = t.match(/(?:리스제공자|임대인)\s*[:：]\s*([^\n,]{2,40})/);
 
   // 자산
   const assetM = t.match(/(?:기초자산|리스자산|대상\s*자산|대상물건)\s*[:：]?\s*([^\n]{2,40})/);
@@ -108,8 +118,8 @@ export function extractRuleBased(text: string): ExtractedLease {
   const restoration = /복구\s*의무|원상\s*회복|철거\s*의무/.test(t);
 
   return {
-    lessee: field(lesseeM?.[1]?.trim() ?? null, lesseeM ? 0.9 : 0, lesseeM ? snippet(t, lesseeM.index ?? 0) : "미발견"),
-    lessor: field(lessorM?.[1]?.trim() ?? null, lessorM ? 0.9 : 0, lessorM ? snippet(t, lessorM.index ?? 0) : "미발견"),
+    lessee: field(lesseeM ? cleanParty(lesseeM[1]) : null, lesseeM ? 0.9 : 0, lesseeM ? snippet(t, lesseeM.index ?? 0) : "미발견"),
+    lessor: field(lessorM ? cleanParty(lessorM[1]) : null, lessorM ? 0.9 : 0, lessorM ? snippet(t, lessorM.index ?? 0) : "미발견"),
     assetDescription: field(assetM?.[1]?.trim() ?? null, assetM ? 0.85 : 0, assetM ? snippet(t, assetM.index ?? 0) : "미발견"),
     commencementDate: field(commencement, dateM ? 0.92 : 0, dateM ? snippet(t, dateM.index ?? 0) : "미발견"),
     termMonths: field(termMonths, termMonths ? 0.9 : 0, termEvidence || "미발견"),
