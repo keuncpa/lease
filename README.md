@@ -1,9 +1,23 @@
+<div align="center">
+
 # LeaseLens — IFRS 16 리스 감사 자동화 엔진
 
-리스 계약서를 AI로 추출하고 K-IFRS 제1116호에 따라
+리스 계약서를 AI로 추출하고 K-IFRS 제1116호에 따라<br/>
 독립 재계산·검증하는 **감사인 관점의 End-to-End 플랫폼**
 
-🔗 Live Demo → https://lease-sandy.vercel.app
+![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)
+![pdfjs-dist](https://img.shields.io/badge/PDF-pdfjs--dist-EC1C24?logo=adobeacrobatreader&logoColor=white)
+![tesseract.js](https://img.shields.io/badge/OCR-tesseract.js-4E9A06)
+![Tests](https://img.shields.io/badge/Tests-6_passing-3FB950)
+![License](https://img.shields.io/badge/License-MIT-3FB950)
+![Live Demo](https://img.shields.io/badge/▲_Live_Demo-Vercel-000000?logo=vercel&logoColor=white)
+
+🔗 **Live Demo** → https://lease-sandy.vercel.app
+
+</div>
 
 ## Overview
 
