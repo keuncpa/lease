@@ -21,10 +21,35 @@ function parseAmount(s: string): number {
   return Number(s.replace(/[^0-9.]/g, ""));
 }
 
-/** 한 줄에서 근거 스니펫 추출 */
-function snippet(text: string, idx: number, len = 60): string {
-  const start = Math.max(0, idx - 10);
-  return text.slice(start, start + len).replace(/\s+/g, " ").trim();
+/** 근거 스니펫 — 매칭 위치가 포함된 '한 줄'만 깔끔히 추출(길면 말줄임). */
+function snippet(text: string, idx: number, max = 48): string {
+  const lineStart = text.lastIndexOf("\n", idx) + 1;
+  let lineEnd = text.indexOf("\n", idx);
+  if (lineEnd === -1) lineEnd = text.length;
+  let line = text.slice(lineStart, lineEnd).replace(/\s+/g, " ").trim();
+  if (line.length > max) line = line.slice(0, max) + "…";
+  return line;
+}
+
+/**
+ * 불리언 조항 탐지 — 키워드가 있어도 같은 '문장' 안에 부정어(없음/미적용 등)가
+ * 뒤따르면 false로 판단한다. 문장 경계는 줄바꿈·마침표·세미콜론.
+ */
+function detectClause(
+  text: string,
+  re: RegExp,
+  label: string
+): ExtractedField<boolean> {
+  const m = text.match(re);
+  if (!m) return field(false, 0.8, `${label} 조항 미발견`);
+  const idx = m.index ?? 0;
+  const rest = text.slice(idx);
+  const stop = rest.search(/[\n.。;]/);
+  const tail = stop === -1 ? rest : rest.slice(0, stop);
+  if (/(없|미적용|제외|불포함|않|아니)/.test(tail)) {
+    return field(false, 0.85, `'${m[0]}' 언급되나 '없음' 등 부정 표현 → 미적용 판단`);
+  }
+  return field(true, 0.8, `${label} 조항 발견`);
 }
 
 /** 당사자명 정리 — "(이하 '을')" 등 부가설명·후행 구두점 제거. 회사형태 (주) 등은 보존. */
@@ -111,11 +136,11 @@ export function extractRuleBased(text: string): ExtractedLease {
     rateEvidence = snippet(t, rateM.index ?? 0);
   }
 
-  // 선택권/변동/복구
-  const renewal = /연장\s*선택권|갱신\s*선택권|연장할\s*수\s*있다/.test(t);
-  const purchase = /매수\s*선택권|소유권\s*이전|구매\s*선택권/.test(t);
-  const variable = /변동\s*리스료|지수\s*연동|물가\s*연동|매출\s*연동|CPI/.test(t);
-  const restoration = /복구\s*의무|원상\s*회복|철거\s*의무/.test(t);
+  // 선택권/변동/복구 — 부정어(없음 등) 처리 포함
+  const renewalField = detectClause(t, /연장\s*선택권|갱신\s*선택권|연장할\s*수\s*있다/, "연장/갱신 선택권");
+  const purchaseField = detectClause(t, /매수\s*선택권|소유권\s*이전|구매\s*선택권/, "매수선택권");
+  const variableField = detectClause(t, /변동\s*리스료|지수\s*연동|물가\s*연동|매출\s*연동|CPI/, "변동리스료");
+  const restorationField = detectClause(t, /복구\s*의무|원상\s*회복|철거\s*의무/, "복구의무");
 
   return {
     lessee: field(lesseeM ? cleanParty(lesseeM[1]) : null, lesseeM ? 0.9 : 0, lesseeM ? snippet(t, lesseeM.index ?? 0) : "미발견"),
@@ -135,10 +160,10 @@ export function extractRuleBased(text: string): ExtractedLease {
           : "명시 안됨 → 기본 후급 가정 검토 필요"
     ),
     annualDiscountRate: field(rate, rate ? 0.85 : 0, rateEvidence || "계약서 미명시 → IBR 별도 산정 필요"),
-    renewalOption: field(renewal, 0.8, renewal ? "연장/갱신 선택권 조항 발견" : "조항 미발견"),
-    purchaseOption: field(purchase, 0.8, purchase ? "매수선택권 조항 발견" : "조항 미발견"),
-    variablePayment: field(variable, 0.8, variable ? "변동리스료 조항 발견" : "조항 미발견"),
-    restorationObligation: field(restoration, 0.8, restoration ? "복구의무 조항 발견" : "조항 미발견"),
+    renewalOption: renewalField,
+    purchaseOption: purchaseField,
+    variablePayment: variableField,
+    restorationObligation: restorationField,
   };
 }
 

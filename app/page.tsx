@@ -339,7 +339,12 @@ export default function Home() {
                                 </span>
                               </td>
                               <td className="p-2 text-neutral-400">
-                                {fld.evidence}
+                                <span
+                                  className="block max-w-[240px] truncate"
+                                  title={fld.evidence}
+                                >
+                                  {fld.evidence}
+                                </span>
                               </td>
                             </tr>
                           );
