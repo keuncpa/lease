@@ -5,7 +5,8 @@
 // 두 모드 모두 ExtractedLease(값+신뢰도+근거)를 반환 → UI/감사검증 공통 처리.
 
 import type { ExtractedField, ExtractedLease } from "./schema";
-import type { LeaseInput } from "../ifrs16/types";
+import { FIELD_LABELS } from "./schema";
+import type { LeaseInput, RateConvention } from "../ifrs16/types";
 
 function field<T>(
   value: T | null,
@@ -132,7 +133,11 @@ export function extractRuleBased(text: string): ExtractedLease {
 }
 
 /** 추출 결과 → 계산엔진 입력. 누락값은 안전 기본치로 채우되 confidence가 낮으면 UI에서 경고 */
-export function toLeaseInput(e: ExtractedLease, id: string): LeaseInput {
+export function toLeaseInput(
+  e: ExtractedLease,
+  id: string,
+  rateConvention: RateConvention = "effective"
+): LeaseInput {
   return {
     id,
     lessee: e.lessee.value ?? undefined,
@@ -143,7 +148,36 @@ export function toLeaseInput(e: ExtractedLease, id: string): LeaseInput {
     paymentsPerYear: (e.paymentsPerYear.value as 1 | 2 | 4 | 12) ?? 12,
     paymentTiming: e.paymentTiming.value ?? "arrears",
     annualDiscountRate: e.annualDiscountRate.value ?? 0.05,
+    rateConvention,
   };
+}
+
+/**
+ * LLM/외부 응답을 안전한 ExtractedLease로 보정한다.
+ * 누락 필드·비정상 형태(숫자 아님, 신뢰도 범위 밖)를 기본값으로 메워
+ * 다운스트림(렌더·계산)이 절대 깨지지 않도록 한다. — 감사도구는 입력을 신뢰하지 않는다.
+ */
+export function coerceExtracted(raw: unknown): ExtractedLease {
+  const src = (raw ?? {}) as Record<string, unknown>;
+  const out = {} as Record<string, ExtractedField<unknown>>;
+  for (const key of Object.keys(FIELD_LABELS)) {
+    const r = src[key];
+    if (r && typeof r === "object") {
+      const o = r as Record<string, unknown>;
+      const value = o.value === undefined ? null : (o.value as unknown);
+      let confidence =
+        typeof o.confidence === "number" && isFinite(o.confidence)
+          ? o.confidence
+          : 0;
+      confidence = Math.min(1, Math.max(0, confidence)); // 0~1 클램프
+      const evidence =
+        typeof o.evidence === "string" && o.evidence ? o.evidence : "근거 미상";
+      out[key] = { value: value === "" ? null : value, confidence, evidence };
+    } else {
+      out[key] = { value: null, confidence: 0, evidence: "LLM 응답에 항목 누락" };
+    }
+  }
+  return out as unknown as ExtractedLease;
 }
 
 /** LLM 추출용 시스템 프롬프트 (api/extract route에서 사용) */

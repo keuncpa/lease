@@ -5,7 +5,9 @@ import { SAMPLES } from "@/lib/data/samples";
 import {
   extractRuleBased,
   toLeaseInput,
+  coerceExtracted,
 } from "@/lib/extraction/extractor";
+import type { RateConvention } from "@/lib/ifrs16/types";
 import { parsePdf, ocrPdf, type PdfParseResponse } from "@/lib/extraction/pdf";
 import type { ExtractedLease } from "@/lib/extraction/schema";
 import { FIELD_LABELS } from "@/lib/extraction/schema";
@@ -36,6 +38,7 @@ export default function Home() {
   const [useLLM, setUseLLM] = useState(false);
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState("");
+  const [convention, setConvention] = useState<RateConvention>("effective");
   const [pdf, setPdf] = useState<PdfParseResponse | null>(null);
   const [pdfBusy, setPdfBusy] = useState("");
   const [ocrFile, setOcrFile] = useState<File | null>(null);
@@ -98,8 +101,9 @@ export default function Home() {
         });
         if (res.ok) {
           const { extracted } = await res.json();
-          setExtracted(extracted as ExtractedLease);
-          setNote("LLM(Anthropic) 추출 결과");
+          // LLM 응답을 신뢰하지 않고 스키마로 보정 (누락/비정상 필드 방어)
+          setExtracted(coerceExtracted(extracted));
+          setNote("LLM 추출 결과 (스키마 검증 적용)");
           setLoading(false);
           return;
         }
@@ -115,13 +119,13 @@ export default function Home() {
   // 추출 결과 → 계산 → 검증 (메모이즈)
   const analysis = useMemo(() => {
     if (!extracted) return null;
-    const input = toLeaseInput(extracted, sample?.id ?? "ADHOC");
+    const input = toLeaseInput(extracted, sample?.id ?? "ADHOC", convention);
     const schedule = buildSchedule(input);
     const rc = recalc(schedule, sample?.clientReportedLiability);
     const findings = runChecks(extracted, schedule, rc);
     const je = commencementJournalEntry(schedule);
     return { input, schedule, rc, findings, je };
-  }, [extracted, sample]);
+  }, [extracted, sample, convention]);
 
   function downloadWorkpaper() {
     if (!extracted || !analysis) return;
@@ -348,9 +352,30 @@ export default function Home() {
 
               {/* Recalc */}
               <div className="card">
-                <h2 className="mb-3 text-sm font-semibold text-neutral-500">
-                  3. 독립 재계산 검증
-                </h2>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-neutral-500">
+                    3. 독립 재계산 검증
+                  </h2>
+                  <div className="flex items-center gap-1 rounded-lg border border-neutral-200 p-0.5 text-xs">
+                    {(["effective", "nominal"] as RateConvention[]).map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setConvention(c)}
+                        className={`rounded-md px-2 py-1 ${
+                          convention === c
+                            ? "bg-brand-orange text-white"
+                            : "text-neutral-500 hover:bg-neutral-50"
+                        }`}
+                        title="할인율 기간환산 방식 — 유효이자율 (1+r)^(1/m)-1 vs 명목분할 r/m"
+                      >
+                        {c === "effective" ? "유효이자율" : "명목분할"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="mb-3 text-xs text-neutral-400">
+                  할인율 환산 가정을 전환해 리스부채 차이의 원인을 분해할 수 있습니다.
+                </p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <Row label="적용 기간이자율">
                     {(analysis.schedule.periodicRate * 100).toFixed(4)}% / 기간
