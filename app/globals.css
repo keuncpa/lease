@@ -7,13 +7,40 @@
 }
 
 body {
-  @apply bg-neutral-50 text-neutral-800 antialiased;
+  @apply bg-slate-50 text-slate-800 antialiased;
+  font-feature-settings: "tnum" 1; /* 표 안 숫자 정렬 */
 }
 
-.card {
-  @apply rounded-xl border border-neutral-200 bg-white p-5 shadow-sm;
-}
+@layer components {
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card;
+  }
 
-.badge {
-  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold;
+  }
+
+  /* 섹션 번호 배지 */
+  .step-no {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-brand-navy text-xs font-bold text-white;
+  }
+
+  /* 기본 버튼(틸) */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-teal px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-tealLight disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-brand-teal hover:text-brand-teal disabled:opacity-40;
+  }
+
+  /* KPI 카드 */
+  .kpi {
+    @apply rounded-2xl border border-slate-200/80 bg-white p-4 shadow-card;
+  }
+
+  /* 라벨 */
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-wider text-slate-400;
+  }
 }
