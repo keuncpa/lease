@@ -10,3 +10,4 @@ next-env.d.ts
 
 # 로컬 전용 작업 폴더 (비공개)
 docs/_local/
+tsconfig.tsbuildinfo

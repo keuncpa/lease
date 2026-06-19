@@ -33,6 +33,21 @@ function sevColor(s: Finding["severity"]) {
 
 type Source = { kind: "pdf" | "sample" | "manual"; label: string };
 
+const HOW_STEPS = [
+  {
+    title: "1. 계약서를 넣습니다",
+    desc: "PDF를 끌어다 놓거나(스캔본은 자동 OCR), 예시 계약서를 클릭하면 됩니다.",
+  },
+  {
+    title: "2. AI가 핵심 조건을 뽑아냅니다",
+    desc: "개시일·기간·리스료·할인율 등을 추출하고, 각 값이 계약서 어느 문장에서 나왔는지(근거)와 신뢰도를 함께 보여줍니다.",
+  },
+  {
+    title: "3. 다시 계산하고 위험을 짚어 줍니다",
+    desc: "IFRS 16으로 리스부채·자산을 독립 재계산해 회사 수치와 비교하고, 회계 위험을 등급별로 표시 후 감사조서를 내보냅니다.",
+  },
+];
+
 export default function Home() {
   const [text, setText] = useState("");
   const [activeSample, setActiveSample] = useState<string | null>(null);
@@ -117,11 +132,13 @@ export default function Home() {
   function loadSample(s: (typeof SAMPLES)[number]) {
     setActiveSample(s.id);
     setText(s.text);
-    setExtracted(null);
     setPdf(null);
     setOcrFile(null);
     setSource({ kind: "sample", label: s.title });
     setNote("");
+    // 원클릭 체험: 예시를 누르면 추출·분석까지 즉시 실행(규칙기반).
+    setExtracted(extractRuleBased(s.text));
+    setUseLLM(false);
   }
 
   function onTextChange(v: string) {
@@ -211,14 +228,39 @@ export default function Home() {
             </span>
           </div>
           <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-tight sm:text-4xl">
-            감사인 관점의 IFRS 16 리스
-            <span className="text-brand-tealLight"> 추출 · 독립 재계산 · 검증</span>
+            리스 계약서를 넣으면, IFRS 16 회계처리를
+            <span className="text-brand-tealLight"> 자동으로 계산하고 검증</span>합니다
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
-            계약서를 AI로 추출(근거조항·신뢰도 포함)하고, K-IFRS 1116에 따라{" "}
-            <b className="text-white">독립적으로 재계산</b>해 회사 수치와의 차이를
-            탐지합니다. 모든 수치는 계약 조항으로 추적되고, 위험은 자동 플래그됩니다.
+            계약서(PDF·텍스트)에서 <b className="text-white">핵심 조건을 AI가 뽑아내고</b>,
+            K-IFRS 1116에 따라 리스부채·사용권자산을{" "}
+            <b className="text-white">독립적으로 다시 계산</b>한 뒤, 회사 수치와의 차이와
+            회계상 위험을 자동으로 짚어 줍니다. 모든 숫자는 계약서 원문 문장으로 추적됩니다.
           </p>
+          <p className="mt-2 max-w-2xl text-xs text-slate-400">
+            👥 리스 회계가 처음인 분, 감사인·회계사, 감사 절차를 빠르게 검토하려는 실무자를 위한 도구입니다.
+          </p>
+
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                loadSample(SAMPLES[0]);
+                setTimeout(
+                  () =>
+                    document
+                      .getElementById("workspace")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                  60
+                );
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-tealLight px-4 py-2.5 text-sm font-semibold text-brand-navy shadow-sm transition hover:brightness-105"
+            >
+              ▶ 예시로 1초 만에 결과 보기
+            </button>
+            <span className="text-xs text-slate-400">
+              또는 아래에서 내 계약서 PDF를 직접 업로드
+            </span>
+          </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-2">
             {["계약서 AI 추출", "IFRS 16 독립 재계산", "이상탐지·위험 플래그", "감사조서 자동생성"].map(
@@ -239,7 +281,39 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-5 py-8">
+      {/* ===== 작동 방식 3단계 (콜드 방문자 안내) ===== */}
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-6">
+          <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+            어떻게 작동하나요 — 3단계
+          </p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {HOW_STEPS.map((s, i) => (
+              <div
+                key={s.title}
+                className="relative flex gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-navy text-sm font-bold text-white">
+                  {i + 1}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{s.title}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+                    {s.desc}
+                  </p>
+                </div>
+                {i < HOW_STEPS.length - 1 && (
+                  <span className="absolute -right-2 top-1/2 hidden -translate-y-1/2 text-slate-300 sm:block">
+                    ›
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div id="workspace" className="mx-auto max-w-6xl px-5 py-8">
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
           {/* ===== Left: input ===== */}
           <section className="space-y-4">
@@ -315,7 +389,7 @@ export default function Home() {
               <div className="my-4 flex items-center gap-3">
                 <span className="h-px flex-1 bg-slate-200" />
                 <span className="text-[11px] font-medium text-slate-400">
-                  또는 예시 계약서로 체험
+                  또는 예시 계약서로 체험 · 클릭하면 바로 분석됩니다
                 </span>
                 <span className="h-px flex-1 bg-slate-200" />
               </div>
@@ -415,10 +489,12 @@ export default function Home() {
                   <KPI
                     label="개시 리스부채"
                     value={won(analysis.schedule.initialLiability)}
+                    sub="미래 리스료의 현재가치"
                   />
                   <KPI
                     label="사용권자산"
                     value={won(analysis.schedule.initialRouAsset)}
+                    sub="빌려 쓸 권리의 장부가"
                   />
                   <KPI
                     label="위험 플래그"
@@ -430,7 +506,18 @@ export default function Home() {
 
                 {/* Extraction table */}
                 <div className="card">
-                  <SectionTitle n="2" title="추출 데이터 · 근거 추적성" />
+                  <SectionTitle
+                    n="2"
+                    title="추출 데이터 · 근거 추적성"
+                    hint="AI가 계약서에서 뽑아낸 핵심 항목입니다. '신뢰도'는 AI가 그 값을 얼마나 확신하는지, '근거'는 그 값이 계약서 어느 문장에서 나왔는지(마우스를 올리면 전체 보기)를 뜻합니다."
+                  />
+                  <Legend
+                    items={[
+                      { dot: "bg-emerald-400", label: "신뢰도 높음 85%+" },
+                      { dot: "bg-amber-400", label: "보통 70–84%" },
+                      { dot: "bg-rose-400", label: "낮음·검토필요 <70%" },
+                    ]}
+                  />
                   <div className="overflow-hidden rounded-xl border border-slate-100">
                     <table className="w-full text-xs">
                       <thead className="bg-slate-50 text-slate-500">
@@ -503,9 +590,12 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
-                  <p className="mb-3 text-xs text-slate-400">
-                    할인율 환산 가정을 전환해 리스부채 차이의 원인을 분해할 수
-                    있습니다.
+                  <p className="mb-2 text-xs leading-relaxed text-slate-400">
+                    이 도구가 계약 조건만으로 리스부채를 처음부터 다시 계산해, 회사가
+                    제시한 수치와 비교합니다. 차이가 <b>1% 이내면 PASS(적정)</b>,
+                    초과하면 <b className="text-rose-500">FAIL(차이 검토 필요)</b>로
+                    표시됩니다. 오른쪽 토글로 할인율 환산 가정을 바꿔 차이 원인을
+                    분해할 수 있습니다.
                   </p>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <Row label="적용 기간이자율">
@@ -539,7 +629,19 @@ export default function Home() {
 
                 {/* Findings */}
                 <div className="card">
-                  <SectionTitle n="4" title="위험 플래그 / 발견사항" />
+                  <SectionTitle
+                    n="4"
+                    title="위험 플래그 / 발견사항"
+                    hint="회계처리에 영향을 줄 수 있는 항목을 자동으로 짚어 줍니다. 각 항목은 위험 등급과 함께, ▸ 표시로 권고 조치를 보여줍니다."
+                  />
+                  <Legend
+                    items={[
+                      { dot: "bg-rose-400", label: "HIGH 중대" },
+                      { dot: "bg-amber-400", label: "MEDIUM 주의" },
+                      { dot: "bg-sky-400", label: "LOW 경미" },
+                      { dot: "bg-emerald-400", label: "INFO 이상없음" },
+                    ]}
+                  />
                   <div className="space-y-2">
                     {analysis.findings.map((f, i) => (
                       <div
@@ -572,6 +674,11 @@ export default function Home() {
                       감사조서 (.md)
                     </button>
                   </div>
+                  <p className="mb-3 text-xs leading-relaxed text-slate-400">
+                    기간별 리스부채 상각 내역과 개시일 회계 분개입니다. 우측
+                    <b> 감사조서(.md)</b> 버튼으로 추출·재계산·발견사항을 담은 조서를
+                    내려받을 수 있습니다.
+                  </p>
                   <div className="mb-4 max-h-52 overflow-auto rounded-xl border border-slate-100">
                     <table className="w-full text-xs">
                       <thead className="sticky top-0 bg-slate-50 text-slate-500">
@@ -637,16 +744,42 @@ export default function Home() {
 function SectionTitle({
   n,
   title,
+  hint,
   inline,
 }: {
   n: string;
   title: string;
+  hint?: string;
   inline?: boolean;
 }) {
   return (
-    <div className={`flex items-center gap-2 ${inline ? "" : "mb-3"}`}>
-      <span className="step-no">{n}</span>
-      <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+    <div className={inline ? "" : "mb-3"}>
+      <div className="flex items-center gap-2">
+        <span className="step-no">{n}</span>
+        <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+      </div>
+      {hint && !inline && (
+        <p className="mt-1.5 pl-8 text-xs leading-relaxed text-slate-400">{hint}</p>
+      )}
+    </div>
+  );
+}
+
+/** 색 점 + 라벨 범례 한 줄 */
+function Legend({
+  items,
+}: {
+  items: { dot: string; label: string }[];
+}) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+      <span className="font-semibold text-slate-400">읽는 법</span>
+      {items.map((it) => (
+        <span key={it.label} className="inline-flex items-center gap-1.5">
+          <span className={`h-2.5 w-2.5 rounded-full ${it.dot}`} />
+          {it.label}
+        </span>
+      ))}
     </div>
   );
 }
@@ -688,8 +821,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function EmptyResults({ hasInput }: { hasInput: boolean }) {
   const steps = [
-    "계약서 업로드 또는 예시 불러오기",
-    "추출 → 분석 실행",
+    "예시 클릭(즉시 분석) 또는 PDF 업로드",
+    "추출 → 분석 실행 (예시는 자동)",
     "근거·재계산·위험 플래그 확인",
     "감사조서(.md) 내보내기",
   ];
@@ -717,6 +850,26 @@ function EmptyResults({ hasInput }: { hasInput: boolean }) {
           </li>
         ))}
       </ol>
+
+      <div className="mt-7 w-full max-w-sm rounded-xl border border-slate-100 bg-slate-50/70 p-4 text-left">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          결과에 나오는 표시 미리 보기
+        </p>
+        <ul className="space-y-1.5 text-xs text-slate-500">
+          <li>
+            <span className="badge bg-emerald-100 text-emerald-700">신뢰도</span>{" "}
+            초록=높음 · 주황=보통 · 빨강=검토필요
+          </li>
+          <li>
+            <span className="badge bg-rose-100 text-rose-700">위험등급</span>{" "}
+            HIGH 중대 · MEDIUM 주의 · LOW 경미 · INFO 이상없음
+          </li>
+          <li>
+            <span className="badge bg-sky-100 text-sky-700">PASS / FAIL</span>{" "}
+            독립 재계산과 회사 수치 차이 1% 이내면 PASS
+          </li>
+        </ul>
+      </div>
     </div>
   );
 }
