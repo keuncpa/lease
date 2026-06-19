@@ -35,16 +35,16 @@ type Source = { kind: "pdf" | "sample" | "manual"; label: string };
 
 const HOW_STEPS = [
   {
-    title: "1. 계약서를 넣습니다",
-    desc: "PDF를 끌어다 놓거나(스캔본은 자동 OCR), 예시 계약서를 클릭하면 됩니다.",
+    title: "계약서 입력",
+    desc: "PDF 업로드 또는 예시 선택. 스캔본은 자동 OCR.",
   },
   {
-    title: "2. AI가 핵심 조건을 뽑아냅니다",
-    desc: "개시일·기간·리스료·할인율 등을 추출하고, 각 값이 계약서 어느 문장에서 나왔는지(근거)와 신뢰도를 함께 보여줍니다.",
+    title: "AI 항목 추출",
+    desc: "개시일·기간·리스료·할인율을 근거 조항·신뢰도와 함께 추출.",
   },
   {
-    title: "3. 다시 계산하고 위험을 짚어 줍니다",
-    desc: "IFRS 16으로 리스부채·자산을 독립 재계산해 회사 수치와 비교하고, 회계 위험을 등급별로 표시 후 감사조서를 내보냅니다.",
+    title: "독립 재계산 · 검증",
+    desc: "IFRS 16 재계산으로 회사 수치 비교, 위험 등급화, 감사조서 출력.",
   },
 ];
 
@@ -228,20 +228,15 @@ export default function Home() {
             </span>
           </div>
           <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-tight sm:text-4xl">
-            리스 계약서를 넣으면, IFRS 16 회계처리를
-            <span className="text-brand-tealLight"> 자동으로 계산하고 검증</span>합니다
+            리스 계약서에서 IFRS 16 회계처리까지,
+            <span className="text-brand-tealLight"> 자동 추출 · 독립 재계산 · 검증</span>
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
-            계약서(PDF·텍스트)에서 <b className="text-white">핵심 조건을 AI가 뽑아내고</b>,
-            K-IFRS 1116에 따라 리스부채·사용권자산을{" "}
-            <b className="text-white">독립적으로 다시 계산</b>한 뒤, 회사 수치와의 차이와
-            회계상 위험을 자동으로 짚어 줍니다. 모든 숫자는 계약서 원문 문장으로 추적됩니다.
-          </p>
-          <p className="mt-2 max-w-2xl text-xs text-slate-400">
-            👥 리스 회계가 처음인 분, 감사인·회계사, 감사 절차를 빠르게 검토하려는 실무자를 위한 도구입니다.
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-300">
+            AI가 계약 조건을 추출하고, K-IFRS 1116으로 리스부채·사용권자산을 독립
+            재계산해 회사 수치와의 차이와 회계 위험을 식별합니다.
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="mt-7 flex flex-wrap items-center gap-4">
             <button
               onClick={() => {
                 loadSample(SAMPLES[0]);
@@ -253,13 +248,11 @@ export default function Home() {
                   60
                 );
               }}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-tealLight px-4 py-2.5 text-sm font-semibold text-brand-navy shadow-sm transition hover:brightness-105"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-tealLight px-5 py-2.5 text-sm font-semibold text-brand-navy shadow-sm transition hover:brightness-105"
             >
-              ▶ 예시로 1초 만에 결과 보기
+              예시 계약서로 바로 보기
             </button>
-            <span className="text-xs text-slate-400">
-              또는 아래에서 내 계약서 PDF를 직접 업로드
-            </span>
+            <span className="text-xs text-slate-400">또는 PDF 직접 업로드</span>
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -285,7 +278,7 @@ export default function Home() {
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-6">
           <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
-            어떻게 작동하나요 — 3단계
+작동 방식 · 3단계
           </p>
           <div className="grid gap-3 sm:grid-cols-3">
             {HOW_STEPS.map((s, i) => (
