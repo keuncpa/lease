@@ -9,6 +9,7 @@
 body {
   @apply bg-slate-50 text-slate-800 antialiased;
   font-feature-settings: "tnum" 1; /* 표 안 숫자 정렬 */
+  word-break: keep-all; /* 한글 단어가 줄 끝에서 중간에 끊기지 않도록 */
 }
 
 @layer components {

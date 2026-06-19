@@ -227,11 +227,12 @@ export default function Home() {
               감사 보조 도구
             </span>
           </div>
-          <h1 className="mt-5 max-w-3xl text-3xl font-bold leading-tight sm:text-4xl">
+          <h1 className="mt-5 max-w-4xl break-keep text-3xl font-bold leading-tight sm:text-4xl">
             리스 계약서에서 IFRS 16 회계처리까지,
-            <span className="text-brand-tealLight"> 자동 추출 · 독립 재계산 · 검증</span>
+            <br />
+            <span className="text-brand-tealLight">자동 추출 · 독립 재계산 · 검증</span>
           </h1>
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-300">
+          <p className="mt-4 max-w-2xl break-keep text-sm leading-relaxed text-slate-300">
             AI가 계약 조건을 추출하고, K-IFRS 1116으로 리스부채·사용권자산을 독립
             재계산해 회사 수치와의 차이와 회계 위험을 식별합니다.
           </p>
